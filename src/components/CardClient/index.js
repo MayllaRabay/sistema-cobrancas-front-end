@@ -80,7 +80,13 @@ function CardClient({ client }) {
         <img src={editIcon} alt='' />
       </button>
 
-      {openEditModal && <ModalEditClient client={client} />}
+      {openEditModal &&
+        <ModalEditClient
+          client={client}
+          openEditModal={openEditModal}
+          setOpenEditModal={setOpenEditModal}
+        />
+      }
 
       {openDetailsModal && <ModalDetailsClient client={client} />}
     </div>
