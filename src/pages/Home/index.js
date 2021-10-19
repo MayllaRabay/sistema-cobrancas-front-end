@@ -1,6 +1,8 @@
 import {
+  Alert,
   Backdrop,
-  CircularProgress
+  CircularProgress,
+  Snackbar
 } from '@mui/material';
 import {
   useContext,
@@ -18,7 +20,10 @@ import AuthContext from '../../contexts/AuthContext';
 import styles from './styles.module.scss';
 
 function Home() {
-  const { token, setToken, tokenLS } = useContext(AuthContext);
+  const { 
+    token, setToken, tokenLS, 
+    setReportBillType, setReportClientType
+  } = useContext(AuthContext);
 
   const history = useHistory();
 
@@ -28,41 +33,82 @@ function Home() {
   const [dueBillings, setDueBillings] = useState(0);
   const [paidBillings, setPaidBillings] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [requestResult, setRequestResult] = useState();
 
   useEffect(() => {
     setToken(tokenLS);
 
     if (!token) {
       history.push('/');
-
       return;
     };
 
     async function retrieveData() {
-      setLoading(true);
+      try {
+        setRequestResult();
+        setLoading(true);
 
-      const response = await fetch('https://academy-bills.herokuapp.com/management', {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Content-type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+        const response = await fetch('https://academy-bills.herokuapp.com/management', {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Content-type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-      const requestData = await response.json();
+        const requestData = await response.json();
 
-      setOverdueClients(requestData.overdueClients);
-      setOnTimeClients(requestData.onTimeClients);
-      setOverdueBillings(requestData.overdueBillings);
-      setDueBillings(requestData.dueBillings);
-      setPaidBillings(requestData.paidBillings);
+        if (!response.ok) {
+          throw new Error(requestData);
+        };
 
-      setLoading(false);
+        setOverdueClients(requestData.overdueClients);
+        setOnTimeClients(requestData.onTimeClients);
+        setOverdueBillings(requestData.overdueBillings);
+        setDueBillings(requestData.dueBillings);
+        setPaidBillings(requestData.paidBillings);
+      } catch (error) {
+        setRequestResult(error.message);
+      } finally {
+        setLoading(false);
+      };
     };
 
     retrieveData();
   }, [token, setToken, tokenLS, history]);
+
+  function handleAlertClose() {
+    setRequestResult();
+  };
+
+  function handleClientReports(e) {
+    if(e.target.id === 'Inadimplentes') {
+      setReportClientType('Inadimplentes');
+    };
+
+    if(e.target.id === 'Em dia') {
+      setReportClientType('Em dia');
+    };
+
+    history.push('/relatorio-cliente');
+  };
+
+  function handleBillReports(e) {
+    if(e.target.id === 'Vencidas') {
+      setReportBillType('Vencidas');
+    };
+
+    if(e.target.id === 'Previstas') {
+      setReportBillType('Previstas');
+    };
+
+    if(e.target.id === 'Pagas') {
+      setReportBillType('Pagas');
+    };
+
+    history.push('/relatorio-cobranca');
+  };
 
   return (
     <div className={styles.content__wrapper}>
@@ -76,20 +122,23 @@ function Home() {
             title='Clientes'
             CardHomeItem={[
               <CardHomeItem
-                key='client_item_1'
+                key='client_overdue'
                 className={styles.item__red}
+                onClick={(e) => handleClientReports(e)}
                 title='Inadimplentes'
+                id='Inadimplentes'
                 number={overdueClients}
               />,
               <CardHomeItem
-                key='client_item_2'
+                key='client_onTime'
                 className={styles.item__green}
+                onClick={(e) => handleClientReports(e)}
                 title='Em dia'
+                id='Em dia'
                 number={onTimeClients}
               />
             ]}
           />
-
           <CardHome
             key='bill'
             icon={billIcon}
@@ -98,24 +147,40 @@ function Home() {
               <CardHomeItem
                 key='bill_item_1'
                 className={styles.item__red}
+                onClick={(e) => handleBillReports(e)}
                 title='Vencidas'
+                id='Vencidas'
                 number={Number((overdueBillings / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               />,
               <CardHomeItem
                 key='bill_item_2'
                 className={styles.item__blue}
+                onClick={(e) => handleBillReports(e)}
                 title='Previstas'
+                id='Previstas'
                 number={Number((dueBillings / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               />,
               <CardHomeItem
                 key='bill_item_3'
                 className={styles.item__green}
+                onClick={(e) => handleBillReports(e)}
                 title='Pagas'
+                id='Pagas'
                 number={Number((paidBillings / 100)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               />
             ]}
           />
-
+          <Snackbar
+            className={styles.snackbar}
+            open={!!requestResult}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            autoHideDuration={3000}
+            onClose={handleAlertClose}
+          >
+            <Alert severity='error'>
+              {requestResult}
+            </Alert>
+          </Snackbar>
           <Backdrop
             sx={{
               color: 'var(--color-white)',

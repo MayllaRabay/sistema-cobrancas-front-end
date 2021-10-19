@@ -22,7 +22,7 @@ import PasswordInput from './../../components/PasswordInput';
 import styles from './styles.module.scss';
 
 function Login() {
-  const { register, handleSubmit } = useForm();
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
   const {
     token, setToken,
@@ -34,7 +34,7 @@ function Login() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState('');
-  const [requestError, setRequestError] = useState('');
+  const [requestResult, setRequestResult] = useState();
 
   useEffect(() => {
     if (tokenLS) {
@@ -48,38 +48,42 @@ function Login() {
   }, [token, setToken, tokenLS, history]);
 
   async function onSubmit(data) {
-    const body = {
-      email: email,
-      password: password
-    };
+    try {
+      const body = {
+        email: email,
+        password: password
+      };
 
-    setRequestError('');
-    setLoading(true);
+      setRequestResult();
+      setLoading(true);
 
-    const response = await fetch('https://academy-bills.herokuapp.com/login', {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-type': 'application/json',
-      },
-      body: JSON.stringify(body)
-    });
+      const response = await fetch('https://academy-bills.herokuapp.com/login', {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-type': 'application/json',
+        },
+        body: JSON.stringify(body)
+      });
 
-    const requestData = await response.json();
+      const requestData = await response.json();
 
-    if (response.ok) {
+      if (!response.ok) {
+        throw new Error(requestData);
+      };
+
       setToken(requestData.token);
       setTokenLS(requestData.token);
       history.push('/home');
-      return;
+    } catch (error) {
+      setRequestResult(error.message);
+    } finally {
+      setLoading(false);
     };
-
-    setRequestError(requestData);
-    setLoading(false);
   };
 
   function handleAlertClose() {
-    setRequestError('');
+    setRequestResult();
   };
 
   return (
@@ -87,40 +91,32 @@ function Login() {
       <form onSubmit={handleSubmit(onSubmit)}>
         <img src={academy} alt='Logo Academy' />
         <label>
-          <h4>E-mail</h4>
+          {errors.email ? <h4 className={styles.input__error}>E-mail</h4> : <h4>E-mail</h4>}
           <TextField
+            {...register('email', { required: true })}
             placeholder='exemplo@email.com'
             type='email'
             fullWidth
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             variant='standard'
+            error={!!errors.email}
           />
+          {errors.email && <p>O campo E-mail é obrigatório!</p>}
         </label>
         <label>
-          <h4>Senha</h4>
+          {errors.password ? <h4 className={styles.input__error}>Senha</h4> : <h4>Senha</h4>}
           <PasswordInput
-            register={() => register('password')}
+            register={() => register('password', { required: true })}
             value={password}
             fullWidth
             onChange={(e) => setPassword(e.target.value)}
             className={styles.password__input}
             variant='standard'
+            error={!!errors.password}
           />
+          {errors.password && <p>O campo Senha é obrigatório!</p>}
         </label>
-
-        <Snackbar
-          className={styles.snackbar}
-          open={!!requestError}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          autoHideDuration={3000}
-          onClose={handleAlertClose}
-        >
-          <Alert severity='error'>
-            {requestError}
-          </Alert>
-        </Snackbar>
-
         <Button
           className={styles.button__states}
           type='submit'
@@ -130,6 +126,18 @@ function Login() {
           Entrar
         </Button>
 
+        <Snackbar
+          className={styles.snackbar}
+          open={!!requestResult}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          autoHideDuration={3000}
+          onClose={handleAlertClose}
+        >
+          <Alert severity='error'>
+            {requestResult}
+          </Alert>
+        </Snackbar>
+        
         <Backdrop
           sx={{
             color: 'var(--color-white)',
@@ -140,7 +148,6 @@ function Login() {
           <CircularProgress color='inherit' />
         </Backdrop>
       </form>
-
       <footer>
         Ainda não possui uma conta? <Link to='/cadastro'>Crie agora!</Link>
       </footer>

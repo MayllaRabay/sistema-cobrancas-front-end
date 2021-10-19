@@ -1,5 +1,6 @@
 .card__wrapper{
   background-color: var(--color-white);
+  border: 1px solid var(--color-white);
   border-radius: 0.5rem;
   color: var(--color-gray-500);
   display: flex;
@@ -10,6 +11,11 @@
   padding: 1rem 3.5rem 1rem 1.5rem;
   text-align: center;
   width: 100%;
+
+  &:hover {
+    cursor: pointer;
+    border: 1px solid var(--color-pink);
+  }
 
   > div {
     width: 20%;

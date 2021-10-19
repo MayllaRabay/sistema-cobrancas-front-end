@@ -18,19 +18,22 @@ import {
 import { useForm } from 'react-hook-form';
 import { useHistory } from 'react-router';
 import searchIcon from '../../assets/search-icon.svg';
+import sideArrow from '../../assets/side-arrow.svg';
 import sortArrow from '../../assets/sort-arrow.svg';
 import CardBill from '../../components/CardBill';
 import Navbar from '../../components/Navbar';
+import NavbarItem from '../../components/NavbarItem';
 import UserProfile from '../../components/UserProfile';
 import AuthContext from '../../contexts/AuthContext';
 import styles from './styles.module.scss';
 
-function Billing() {
+function BillingReport() {
   const { register, setValue, getValues } = useForm();
 
-  const {
+  const { 
     token, setToken, tokenLS,
-    updateBillingsList, setUpdateBillingsList
+    updateBillingsList, setUpdateBillingsList,
+    reportBillType, setReportBillType
   } = useContext(AuthContext);
 
   const history = useHistory();
@@ -43,6 +46,9 @@ function Billing() {
   const [requestResult, setRequestResult] = useState();
   const [searchBills, setSearchBills] = useState([]);
   const [searchResult, setSearchResult] = useState('');
+  const [isTypeVisible, setIsTypeVisible] = useState(false);
+  const [isStatusVisible, setIsStatusVisible] = useState(false);
+  const [statusText, setStatusText] = useState(reportBillType || 'Vencidas');
 
   useEffect(() => {
     setToken(tokenLS);
@@ -83,7 +89,7 @@ function Billing() {
 
     async function getBillings() {
       setIsDescSort(false);
-
+      
       try {
         setRequestResult();
         setLoading(true);
@@ -104,19 +110,18 @@ function Billing() {
         };
 
         requestData.sort((a, b) => {
-          if (a.name > b.name) {
+          if(a.name > b.name) {
             return 1;
           };
-
+      
           if (a.name < b.name) {
             return -1;
           };
-
+          
           return 0;
         });
 
         setBillList(requestData);
-        setSearchBills(requestData);
         setValue('search', '');
       } catch (error) {
         setRequestResult(error.message);
@@ -138,12 +143,61 @@ function Billing() {
 
     if (searchBills.length > 0) {
       listManipulation = searchBills;
-    } else {
-      listManipulation = billList;
+      setCurrentList(listManipulation);
+      return;
+    } 
+    
+    if (statusText === 'Vencidas') {
+      listManipulation = billList.filter((bill) => bill.status === 'VENCIDO');
     };
 
+    if (statusText === 'Previstas') {
+      listManipulation = billList.filter((bill) => bill.status === 'PENDENTE');
+    };
+
+    if (statusText === 'Pagas') {
+      listManipulation = billList.filter((bill) => bill.status === 'PAGO');
+    };
+    
     setCurrentList(listManipulation);
-  }, [isDescSort, searchBills, billList]);
+  }, [isDescSort, searchBills, billList, statusText]);
+
+  function handleAlertClose() {
+    setRequestResult();
+  };
+
+  function handleSortByName() {
+    setIsDescSort(!isDescSort);
+  };
+
+  function handleClientReport() {
+    history.push('/relatorio-cliente');
+  };
+
+  function handleTypeVisible() {
+    setIsTypeVisible(!isTypeVisible);
+  };
+
+  function handleStatusVisible() {
+    setIsStatusVisible(!isStatusVisible);
+  };
+
+  function handleStatus(e) {
+    if(e.target.innerText === 'Vencidas') {
+      setReportBillType('Vencidas');
+      setStatusText('Vencidas');
+      return;
+    };
+
+    if(e.target.innerText === 'Previstas') {
+      setReportBillType('Previstas');
+      setStatusText('Previstas');
+      return;
+    };
+
+    setReportBillType('Pagas');
+    setStatusText('Pagas');
+  };
 
   function handleSearch() {
     setSearchResult('');
@@ -169,18 +223,22 @@ function Billing() {
         return;
       };
 
+      if (statusText === 'Vencidas') {
+        setSearchBills(filter.filter((bill) => bill.status === 'VENCIDO'));
+      };
+  
+      if (statusText === 'Previstas') {
+        setSearchBills(filter.filter((bill) => bill.status === 'PENDENTE'));
+      };
+
+      if (statusText === 'Pagas') {
+        setSearchBills(filter.filter((bill) => bill.status === 'PAGO'));
+      };
+
       setSearchBills(filter);
     } else {
       setSearchBills([]);
     };
-  };
-
-  function handleAlertClose() {
-    setRequestResult();
-  };
-
-  function handleSortByName() {
-    setIsDescSort(!isDescSort);
   };
 
   const theme = createTheme({
@@ -199,16 +257,71 @@ function Billing() {
         <div className={styles.content}>
           <ThemeProvider theme={theme}>
             <div className={styles.search__wrapper}>
+              <div className={styles.report__search}>
+                <div className={styles.report__type} onClick={handleTypeVisible}>
+                  <div className={styles.type__text}>Cobranças</div>
+                  {isTypeVisible &&
+                    <div className={styles.menuProfile}>
+                      <NavbarItem
+                        key='itemMenu_cliente'
+                        image=''
+                        title='Clientes'
+                        onClick={handleClientReport}
+                      />
+                      <NavbarItem
+                        key='itemMenu_cobranca'
+                        image=''
+                        title='Cobranças'
+                        onClick={handleTypeVisible}
+                        className={styles.text__selected}
+                      />
+                    </div>
+                  }
+                </div>
+                <img src={sideArrow} alt='' />
+                <div className={styles.report__status} onClick={handleStatusVisible}>
+                  <div className={styles.status__text}>{statusText}</div>
+                  {isStatusVisible &&
+                    <div className={styles.menuProfile}>
+                      <NavbarItem
+                        key='itemMenu_vencidas'
+                        image=''
+                        title='Vencidas'
+                        onClick={(e) => handleStatus(e)}
+                        className={
+                          (reportBillType === 'Vencidas' || statusText === 'Vencidas')
+                          && `${styles.text__selected}`
+                        }
+                      />
+                      <NavbarItem
+                        key='itemMenu_previstas'
+                        image=''
+                        title='Previstas'
+                        onClick={(e) => handleStatus(e)}
+                        className={
+                          (reportBillType === 'Previstas' || statusText === 'Previstas')
+                          && `${styles.text__selected}`
+                        }
+                      />
+                      <NavbarItem
+                        key='itemMenu_pagas'
+                        image=''
+                        title='Pagas'
+                        onClick={(e) => handleStatus(e)}
+                        className={
+                          (reportBillType === 'Pagas' || statusText === 'Pagas')
+                          && `${styles.text__selected}`
+                        }
+                      />
+                    </div>
+                  }
+                </div>
+              </div>
               <form onSubmit={e => { e.preventDefault() }}>
                 <TextField
                   {...register('search')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSearch();
-                    };
-                  }}
                   color='secondary'
-                  placeholder='Procurar por Nome, E-mail, CPF ou ID'
+                  placeholder='Procurar por Nome ou ID'
                 />
                 <Button className={styles.search__button} onClick={handleSearch}>
                   <img src={searchIcon} alt='' />
@@ -228,6 +341,7 @@ function Billing() {
             <div>Status</div>
             <div>Vencimento</div>
           </div>
+          
           {(currentList.length > 0)
             && ((searchResult.length !== 0)
               ? <div className={styles.cardNoResult}>Sem resultados...</div>
@@ -237,6 +351,7 @@ function Billing() {
               )
             )
           }
+
           <Snackbar
             className={styles.snackbar}
             open={!!requestResult}
@@ -248,7 +363,7 @@ function Billing() {
               {requestResult}
             </Alert>
           </Snackbar>
-
+          
           <Backdrop
             sx={{
               color: 'var(--color-white)',
@@ -264,4 +379,4 @@ function Billing() {
   );
 };
 
-export default Billing;
+export default BillingReport;

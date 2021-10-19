@@ -27,130 +27,136 @@ function EditUserProfile({ user }) {
   const [name, setName] = useState(user.current.name);
   const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState(user.current.phone 
-    ? `(${user.current.phone.substr(0, 2)})${user.current.phone.substr(2, 5)}-${user.current.phone.substr(7)}` 
+  const [phone, setPhone] = useState(user.current.phone
+    ? `(${user.current.phone.substr(0, 2)})${user.current.phone.substr(2, 5)}-${user.current.phone.substr(7)}`
     : ''
   );
-  const [requestError, setRequestError] = useState('');
-  const [taxId, setTaxId] = useState(user.current.tax_id 
-    ? `${user.current.tax_id.substr(0, 3)}.${user.current.tax_id.substr(3, 3)}.${user.current.tax_id.substr(6, 3)}-${user.current.tax_id.substr(9, 2)}` 
+  const [requestResult, setRequestResult] = useState();
+  const [taxId, setTaxId] = useState(user.current.tax_id
+    ? `${user.current.tax_id.substr(0, 3)}.${user.current.tax_id.substr(3, 3)}.${user.current.tax_id.substr(6, 3)}-${user.current.tax_id.substr(9, 2)}`
     : ''
   );
+  const [isStatus200, setIsStatus200] = useState(false);
 
   async function onSubmit() {
-    if (user.current.phone && phone === '') {
-      setPhone('');
-    };
+    try {
+      if (user.current.phone && phone === '') {
+        setPhone('');
+      };
 
-    if (user.current.tax_id && taxId === '') {
-      setTaxId('');
-    };
+      if (user.current.tax_id && taxId === '') {
+        setTaxId('');
+      };
 
-    const newPhone = phone.replace('(', '').replace(')', '').replace('-', '');
+      const newPhone = phone.replace('(', '').replace(')', '').replace('-', '');
+      const newTaxId = taxId.replace(/\./g, '').replace('-', '');
 
-    const newTaxId = taxId.replace(/\./g, '').replace('-', '');
+      const body = {
+        name: name,
+        email: email,
+        password: password === '' ? user.current.password : password,
+        phone: phone === '' ? phone : newPhone,
+        taxId: taxId === '' ? taxId : newTaxId
+      };
 
-    const body = {
-      name: name,
-      email: email,
-      password: password === '' ? user.current.password : password,
-      phone: phone === '' ? phone : newPhone,
-      taxId: taxId === '' ? taxId : newTaxId
-    };
-
-    setRequestError('');
-    setLoading(true);
-
-    const response = await fetch('https://academy-bills.herokuapp.com/profile', {
-      method: 'PUT',
-      mode: 'cors',
-      headers: {
-        'Content-type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
-
-    const requestData = await response.json();
-
-    if (response.ok) {
-      setRequestError(requestData);
+      setRequestResult();
+      setIsStatus200(false);
       setLoading(true);
+
+      const response = await fetch('https://academy-bills.herokuapp.com/profile', {
+        method: 'PUT',
+        mode: 'cors',
+        headers: {
+          'Content-type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      const requestData = await response.json();
+
+      if (!response.ok) {
+        setRequestResult(requestData);
+        return;
+      };
+
+      setIsStatus200(true);
+      setRequestResult(requestData);
       setTimeout(() => {
         setOpen(!open);
       }, 2000);
-      return;
+    } catch (error) {
+      setRequestResult(error.messsage);
+    } finally {
+      setLoading(false);
     };
-
-    setRequestError(requestData);
-    setLoading(false);
   };
 
   function handleAlertClose() {
-    setRequestError('');
+    setRequestResult();
   };
 
   function handleModalClose() {
+    setIsStatus200(false);
     setOpen(!open);
   };
 
   function formatPhone(phone) {
     const newPhone = phone.replace('(', '').replace(')', '').replace('-', '');
 
-    if(newPhone.length === 0) {
+    if (newPhone.length === 0) {
       setPhone('');
       return;
     };
 
-    if(newPhone.length <= 2) {
+    if (newPhone.length <= 2) {
       const finalPhone = `(${newPhone.substr(0, 2)}`;
       setPhone(finalPhone);
       return;
     };
 
-    if(newPhone.length === 10) {
+    if (newPhone.length === 10) {
       const finalPhone = `(${newPhone.substr(0, 2)})${newPhone.substr(2, 4)}-${newPhone.substr(6)}`;
       setPhone(finalPhone);
       return;
     };
-    
-    if(newPhone.length > 8) {
+
+    if (newPhone.length > 8) {
       const finalPhone = `(${newPhone.substr(0, 2)})${newPhone.substr(2, 5)}-${newPhone.substr(7)}`;
       setPhone(finalPhone);
       return;
     };
 
     const finalPhone = `(${newPhone.substr(0, 2)})${newPhone.substr(2, (newPhone.length - 2))}`;
-    
     setPhone(finalPhone);
   }
 
   function formatTaxId(taxId) {
     const newTaxId = taxId.replace(/\./g, '').replace('-', '');
 
-    if(newTaxId.length <= 3) {
+    if (newTaxId.length <= 3) {
       setTaxId(newTaxId);
       return;
     };
 
-    if(newTaxId.length >= 10) {
+    if (newTaxId.length >= 10) {
       const finalTaxId = `${newTaxId.substr(0, 3)}.${newTaxId.substr(3, 3)}.${newTaxId.substr(6, 3)}-${newTaxId.substr(9, (newTaxId.length - 9))}`;
       setTaxId(finalTaxId);
       return;
     };
 
-    if(newTaxId.length >= 7) {
+    if (newTaxId.length >= 7) {
       const finalTaxId = `${newTaxId.substr(0, 3)}.${newTaxId.substr(3, 3)}.${newTaxId.substr(6, newTaxId.length - 6)}`;
       setTaxId(finalTaxId);
       return;
     };
 
-    if(newTaxId.length >= 4) {
+    if (newTaxId.length >= 4) {
       const finalTaxId = `${newTaxId.substr(0, 3)}.${newTaxId.substr(3, (newTaxId.length - 3))}`;
       setTaxId(finalTaxId);
       return;
     };
-  }
+  };
 
   return (
     <Modal
@@ -224,22 +230,17 @@ function EditUserProfile({ user }) {
           }
           {errors.tax_id?.type === 'pattern' && <p>O CPF deve conter apenas números</p>}
         </label>
-
         <Snackbar
           className={styles.snackbar}
-          open={!!requestError}
+          open={!!requestResult}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           autoHideDuration={3000}
           onClose={handleAlertClose}
         >
-          <Alert severity={requestError === 'Perfil do usuário atualizado com sucesso.'
-            ? 'success'
-            : 'error'}
-          >
-            {requestError}
+          <Alert severity={isStatus200 ? 'success' : 'error'}>
+            {requestResult}
           </Alert>
         </Snackbar>
-
         <Button
           className={styles.button__states}
           type='submit'
@@ -248,7 +249,6 @@ function EditUserProfile({ user }) {
         >
           Editar conta
         </Button>
-
         <Backdrop sx={{
           color: 'var(--color-white)',
           zIndex: (theme) => theme.zIndex.drawer + 1

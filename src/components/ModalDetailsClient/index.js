@@ -1,24 +1,11 @@
-import {
-  Modal
-} from '@mui/material';
-import {
-  useContext,
-  useState
-} from 'react';
+import { Modal } from '@mui/material';
 import closeIcon from '../../assets/close-icon.svg';
 import emailIcon from '../../assets/email-icon.svg';
 import phoneIcon from '../../assets/phone-icon.svg';
 import CardDetailBill from '../CardDetailBill';
-import AuthContext from '../../contexts/AuthContext';
 import styles from './styles.module.scss';
 
-const ModalDetailsClient = ({ client }) => {
-  const [openModal, setOpenModal] = useState(true);
-
-  const {
-    setResetModal
-  } = useContext(AuthContext);
-
+const ModalDetailsClient = ({ client, openDetailsModal, setOpenDetailsModal }) => {
   function formatPhone(phone) {
     return `(${phone.substr(0, 2)})${phone.substr(2, 5)}-${phone.substr(7)}`;
   };
@@ -32,9 +19,7 @@ const ModalDetailsClient = ({ client }) => {
   };
 
   function handleDetailsClient() {
-    setOpenModal(false);
-
-    setResetModal(true);
+    setOpenDetailsModal(false);
   };
 
   const formatClient = {
@@ -56,7 +41,7 @@ const ModalDetailsClient = ({ client }) => {
 
   return (
     <Modal
-      open={openModal}
+      open={openDetailsModal}
       onClose={handleDetailsClient}
       className={styles.modal__wrapper}
     >

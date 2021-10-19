@@ -1,10 +1,10 @@
 import styles from './styles.module.scss';
 
-function CardHomeItem({ className, title, number }) {
+function CardHomeItem({ className, onClick, title, id, number }) {
   return (
-    <div className={`${styles.item} ${className}`}>
-      <p>{title}</p>
-      <div>{number}</div>
+    <div id={id} className={`${styles.item} ${className}`} onClick={onClick}>
+      <p id={id}>{title}</p>
+      <div id={id}>{number}</div>
     </div>
   );
 };

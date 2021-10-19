@@ -18,14 +18,13 @@ import {
 } from 'react';
 import { useForm } from 'react-hook-form';
 import { useHistory } from 'react-router-dom';
-import calendarIcon from '../../assets/calendar-icon.svg';
 import Navbar from '../../components/Navbar';
 import UserProfile from '../../components/UserProfile';
 import AuthContext from '../../contexts/AuthContext';
 import styles from './styles.module.scss';
 
 function EnrollBill() {
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, setError } = useForm();
 
   const {
     token, setToken,
@@ -36,14 +35,13 @@ function EnrollBill() {
 
   const [clientId, setClientId] = useState('Selecione um(a) cliente');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [isStatus200, setIsStatus200] = useState(false);
+  const [listClients, setListClients] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [requestResult, setRequestResult] = useState();
   const [status, setStatus] = useState('Selecione um status');
   const [value, setValue] = useState('');
-  const [dueDate, setDueDate] = useState('');
-
-  const [listClients, setListClients] = useState([]);
-
-  const [requestError, setRequestError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setToken(tokenLS);
@@ -53,83 +51,106 @@ function EnrollBill() {
       return;
     };
 
+    setIsStatus200(false);
+
     async function retrieveClients() {
-      setRequestError('');
-      setLoading(true);
+      try {
+        setRequestResult();
+        setLoading(true);
 
-      const response = await fetch('https://academy-bills.herokuapp.com/clients/options', {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Content-type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+        const response = await fetch('https://academy-bills.herokuapp.com/clients/options', {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Content-type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-      const requestData = await response.json();
-      
-      if (response.ok) {
+        const requestData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(requestData);
+        };
+
         setListClients(requestData);
         setLoading(false);
-        return;
+      } catch (error) {
+        setRequestResult(error.message);
+      } finally {
+        setLoading(false);
       };
-
-      setRequestError(requestData);
-      setLoading(false);
-    }
+    };
 
     retrieveClients();
   }, [token, setToken, tokenLS, history]);
 
 
   async function onSubmit() {
-    const newValue = Number(value.replace('.', '').replace(',', ''));
+    try {
+      const newValue = Number(value.replace(/\./g, '').replace(',', ''));
 
-    if(newValue === 0) {
-      setRequestError('O valor da cobrança deve ser maior que zero.');
-      errors.value = !!errors.value;
-      return;
-    }
+      if (newValue === 0) {
+        setRequestResult('O valor da cobrança deve ser maior que zero.');
+        setError('value', { shouldFocus: true });
+        return;
+      };
 
-    const body = {
-      clientId: clientId,
-      description: description,
-      status: status,
-      value: newValue,
-      dueDate: dueDate
-    };
+      if(clientId === 'Selecione um(a) cliente') {
+        setRequestResult('Selecione um cliente válido.');
+        setError('clientId', { shouldFocus: true });
+        return;
+      };
 
-    setRequestError('');
-    setLoading(true);
+      if(status === 'Selecione um status') {
+        setRequestResult('Selecione um status válido.');
+        setError('status', { shouldFocus: true });
+        return;
+      }
 
-    const response = await fetch('https://academy-bills.herokuapp.com/billings', {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
+      const body = {
+        clientId: clientId,
+        description: description,
+        status: status,
+        value: newValue,
+        dueDate: dueDate
+      };
 
-    const requestData = await response.json();
+      setRequestResult();
+      setIsStatus200(false);
+      setLoading(true);
 
-    if (response.ok) {
-      setRequestError(requestData);
+      const response = await fetch('https://academy-bills.herokuapp.com/billings', {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      const requestData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(requestData);
+      };
+
+      setIsStatus200(true);
+      setRequestResult(requestData);
       setLoading(true);
       setTimeout(() => {
         history.push('/cobrancas');
       }, 2000);
-
-      return;
+    } catch (error) {
+      setRequestResult(error.message);
+    } finally {
+      setLoading(false);
     };
-
-    setRequestError(requestData);
-    setLoading(false);
   };
 
   function handleAlertClose() {
-    setRequestError('');
+    setRequestResult();
   };
 
   function cancelButton() {
@@ -137,26 +158,45 @@ function EnrollBill() {
   };
 
   function formatValue(value) {
-    if(value.length < 3) {
+    if (value.length < 2) {
       setValue(value);
       return;
     };
 
-    const newValue = value.replace(',', '').replace('.', '');
-    
+    const newValue = value.replace(',', '').replace(/\./g, '');
     const centIndex = (newValue.length - 2);
     const thousandIndex = (newValue.length - 5);
+    const millionIndex = (newValue.length - 8);
 
-    if(newValue.length >= 6) {
+    if(newValue === 3) {
+      const finalValue = `${newValue.substr(0, 1)},${newValue.substr(centIndex, 2)}`;
+      setValue(finalValue);
+      return;
+    };
+
+    if (newValue.length >= 9) {
+      const finalValue = `${newValue.substr(0, millionIndex)}.${newValue.substr(millionIndex, 3)}.${newValue.substr(thousandIndex, 3)},${newValue.substr(centIndex, 2)}`;
+      setValue(finalValue);
+      return;
+    };
+
+    if (newValue.length >= 6) {
       const finalValue = `${newValue.substr(0, thousandIndex)}.${newValue.substr(thousandIndex, 3)},${newValue.substr(centIndex, 2)}`;
       setValue(finalValue);
       return;
-    }
+    };
 
     const finalValue = `${newValue.substr(0, centIndex)},${newValue.substr(centIndex, 2)}`;
-
     setValue(finalValue);
-  }
+  };
+
+  /*function formatDate(date) {
+    const monthNumber = date.substr(5, 2);
+    const monthName = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    
+    const newDate = `${date.substr(8, 2)} de ${monthName[monthNumber - 1]} de ${date.substr(0, 4)}`;
+    setDueDate(newDate);
+  }*/
 
   const statusOption = [
     {
@@ -195,7 +235,7 @@ function EnrollBill() {
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className={styles.input__wrapper}>
                 <label>
-                  <h4>Cliente</h4>
+                  {errors.clientId ? <h4 className={styles.input__error}>Cliente</h4> : <h4>Cliente</h4>}
                   <Select
                     {...register('clientId', { required: true })}
                     value={clientId}
@@ -203,7 +243,7 @@ function EnrollBill() {
                     color='secondary'
                     fullWidth
                     variant='outlined'
-                    error={errors.clientId}
+                    error={!!errors.clientId}
                     sx={menuItemStyle}
                   >
                     <MenuItem disabled value='Selecione um(a) cliente' sx={menuItemStyle}>
@@ -216,12 +256,12 @@ function EnrollBill() {
                       </MenuItem>
                     ))}
                   </Select>
+                  {errors.clientId && <p className={styles.alert__error}>Por favor selecione um cliente!</p>}
                 </label>
               </div>
-
               <div className={styles.input__wrapper}>
                 <label>
-                  <h4>Descrição</h4>
+                  {errors.description ? <h4 className={styles.input__error}>Descrição</h4> : <h4>Descrição</h4>}
                   <TextField
                     {...register('description', { required: true })}
                     value={description}
@@ -231,15 +271,17 @@ function EnrollBill() {
                     multiline
                     maxRows={2}
                     variant='outlined'
-                    error={errors.description}
+                    error={!!errors.description}
                   />
-                  <h6>A descrição informada será impressa no boleto</h6>
+                  {errors.description?.type === 'required'
+                    ? <p className={styles.alert__error}>O campo Descrição é obrigatório!</p>
+                    : <h6>A descrição informada será impressa no boleto</h6>
+                  }
                 </label>
               </div>
-
               <div className={styles.input__wrapper}>
                 <label>
-                  <h4>Status</h4>
+                  {errors.status ? <h4 className={styles.input__error}>Status</h4> : <h4>Status</h4>}
                   <Select
                     {...register('status', { required: true })}
                     value={status}
@@ -247,9 +289,9 @@ function EnrollBill() {
                     color='secondary'
                     fullWidth
                     variant='outlined'
-                    error={errors.status}
+                    error={!!errors.status}
                     sx={menuItemStyle}
-                  > 
+                  >
                     <MenuItem disabled value='Selecione um status' sx={menuItemStyle}>
                       Selecione um status
                     </MenuItem>
@@ -259,9 +301,9 @@ function EnrollBill() {
                       </MenuItem>
                     ))}
                   </Select>
+                  {errors.status && <p className={styles.alert__error}>Por favor selecione um status!</p>}
                 </label>
               </div>
-
               <div className={styles.input__wrapper}>
                 <label className={styles.divided__label}>
                   {errors.value ? <h4 className={styles.input__error}>Valor</h4> : <h4>Valor</h4>}
@@ -269,48 +311,37 @@ function EnrollBill() {
                     {...register('value', { required: true, pattern: /^[0-9.,]+$/ })}
                     value={value}
                     onChange={(e) => formatValue(e.target.value)}
+                    inputProps={{ maxLength: 12 }}
                     InputProps={{
-                      startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                      startAdornment: <InputAdornment position="start">R$</InputAdornment>
                     }}
                     color='secondary'
                     placeholder='0,00'
                     variant='outlined'
                     error={!!errors.value}
                   />
+                  {errors.value?.type === 'required' && <p className={styles.alert__error}>O campo Valor é obrigatório!</p>}
                   {errors.value?.type === 'pattern' && <p className={styles.alert__error}>O valor deve conter apenas números</p>}
                 </label>
-                
                 <label className={styles.divided__label}>
-                  <h4>Vencimento</h4>
+                  {errors.dueDate ? <h4 className={styles.input__error}>Vencimento</h4> : <h4>Vencimento</h4>}
                   <TextField
                     type='date'
                     {...register('dueDate', { required: true })}
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    InputProps={{
+                    /*InputProps={{
                       endAdornment: <InputAdornment position="start">
                         <img src={calendarIcon} alt='' className={styles.calendar__icon} />
                       </InputAdornment>,
-                    }}
+                    }}*/
                     color='secondary'
                     variant='outlined'
-                    error={errors.dueDate}
+                    error={!!errors.dueDate}
                   />
+                  {errors.dueDate?.type === 'required' && <p className={styles.alert__error}>O campo Vencimento é obrigatório!</p>}
                 </label>
               </div>
-
-              <Snackbar
-                className={styles.snackbar}
-                open={!!requestError}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                autoHideDuration={3000}
-                onClose={handleAlertClose}
-              >
-                <Alert severity={requestError === 'Cobrança cadastrada com sucesso.' ? 'success' : 'error'}>
-                  {requestError}
-                </Alert>
-              </Snackbar>
-
               <div className={styles.button__wrapper}>
                 <Button
                   className={`${styles.button__states} ${styles.button__cancel}`}
@@ -330,6 +361,18 @@ function EnrollBill() {
                 </Button>
               </div>
 
+              <Snackbar
+                className={styles.snackbar}
+                open={!!requestResult}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                autoHideDuration={3000}
+                onClose={handleAlertClose}
+              >
+                <Alert severity={isStatus200 ? 'success' : 'error'}>
+                  {requestResult}
+                </Alert>
+              </Snackbar>
+              
               <Backdrop
                 sx={{
                   color: 'var(--color-white)',

@@ -11,6 +11,11 @@
     cursor: pointer;
     border-radius: 50%;
   }
+
+  .snackbar {
+    position: absolute;
+    width: max-content;
+  }
 }
 
 .menuProfile {
