@@ -30,4 +30,4 @@
 ---
 
 ## Figma
-[https://www.figma.com/file/KV0rQOsEBphvJehWCBD3Mp/Desafio-Cubos-Academy-(Sprint-1)?node-id=0%3A1](https://)
+https://www.figma.com/file/QFdwbyQilN8gJ0omEawVdp/Desafio-Cubos-Academy-(Sprint-3)?node-id=0%3A1
